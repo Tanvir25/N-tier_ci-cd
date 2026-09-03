@@ -21,15 +21,15 @@ export default function StatusScene() {
     scene.add(group);
 
     const materials = [
-      new THREE.MeshStandardMaterial({ color: '#22c55e', metalness: 0.2, roughness: 0.35 }),
-      new THREE.MeshStandardMaterial({ color: '#38bdf8', metalness: 0.25, roughness: 0.3 }),
-      new THREE.MeshStandardMaterial({ color: '#f97316', metalness: 0.15, roughness: 0.45 }),
+      new THREE.MeshStandardMaterial({ color: '#6366f1', emissive: '#4338ca', emissiveIntensity: 0.45, metalness: 0.65, roughness: 0.22 }),
+      new THREE.MeshStandardMaterial({ color: '#22d3ee', emissive: '#0891b2', emissiveIntensity: 0.5, metalness: 0.7, roughness: 0.18 }),
+      new THREE.MeshStandardMaterial({ color: '#a855f7', emissive: '#7e22ce', emissiveIntensity: 0.45, metalness: 0.6, roughness: 0.25 }),
     ];
 
     const geometries = [
       new THREE.BoxGeometry(1.1, 1.1, 1.1),
-      new THREE.IcosahedronGeometry(0.75, 0),
-      new THREE.TorusKnotGeometry(0.42, 0.14, 96, 12),
+      new THREE.IcosahedronGeometry(0.78, 0),
+      new THREE.TorusKnotGeometry(0.42, 0.14, 128, 16),
     ];
 
     geometries.forEach((geometry, index) => {
@@ -39,7 +39,7 @@ export default function StatusScene() {
       group.add(mesh);
     });
 
-    const lineMaterial = new THREE.LineBasicMaterial({ color: '#9ca3af', transparent: true, opacity: 0.45 });
+    const lineMaterial = new THREE.LineBasicMaterial({ color: '#7dd3fc', transparent: true, opacity: 0.35 });
     const points = [
       new THREE.Vector3(-1.7, -0.25, 0),
       new THREE.Vector3(0, 0.35, 0),
@@ -47,10 +47,18 @@ export default function StatusScene() {
     ];
     group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMaterial));
 
-    scene.add(new THREE.AmbientLight('#ffffff', 1.2));
-    const keyLight = new THREE.DirectionalLight('#ffffff', 2);
+    scene.add(new THREE.AmbientLight('#c7d2fe', 0.9));
+    const keyLight = new THREE.DirectionalLight('#ffffff', 1.8);
     keyLight.position.set(3, 4, 5);
     scene.add(keyLight);
+
+    const cyanLight = new THREE.PointLight('#22d3ee', 22, 14);
+    cyanLight.position.set(-3, 1.5, 3);
+    scene.add(cyanLight);
+
+    const violetLight = new THREE.PointLight('#a855f7', 20, 14);
+    violetLight.position.set(3, -1.5, 2);
+    scene.add(violetLight);
 
     const handleResize = () => {
       if (!mount) return;

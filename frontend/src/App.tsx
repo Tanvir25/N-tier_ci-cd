@@ -1,4 +1,4 @@
-import { Boxes, Gauge, HeartPulse, ShieldAlert } from 'lucide-react';
+import { Boxes, Gauge, HeartPulse, Rocket, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import DeploymentForm from './components/DeploymentForm';
 import DeploymentTable from './components/DeploymentTable';
@@ -68,6 +68,26 @@ export default function App() {
 
   return (
     <main>
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">
+            <Rocket size={20} />
+          </span>
+          <div>
+            <strong>LaunchBoard</strong>
+            <span>DevOps Control Plane</span>
+          </div>
+        </div>
+        <nav className="topnav">
+          <a href="#deployments">Deployments</a>
+          <a href="#create">Create</a>
+        </nav>
+        <div className="live-badge">
+          <span className="dot" />
+          Live API
+        </div>
+      </header>
+
       <section className="hero">
         <div className="hero-copy">
           <p className="eyebrow">3-tier deployment classroom</p>
@@ -90,24 +110,28 @@ export default function App() {
           value={summary.total_services}
           detail="frontend, backend, database"
           icon={<Boxes size={22} />}
+          accent="indigo"
         />
         <MetricCard
           label="Health Score"
           value={`${healthScore}%`}
           detail={`${summary.healthy} healthy deployments`}
           icon={<HeartPulse size={22} />}
+          accent="emerald"
         />
         <MetricCard
           label="Avg Latency"
           value={`${summary.average_latency_ms}ms`}
           detail={`${summary.average_error_rate}% avg errors`}
           icon={<Gauge size={22} />}
+          accent="cyan"
         />
         <MetricCard
           label="Needs Attention"
           value={summary.degraded + summary.failed}
           detail="degraded or failed releases"
           icon={<ShieldAlert size={22} />}
+          accent="amber"
         />
       </section>
 
@@ -151,6 +175,13 @@ export default function App() {
           </div>
         </div>
       </section>
+
+      <footer className="site-footer">
+        <span>
+          <strong>DevOps LaunchBoard</strong> — 3-tier deployment classroom
+        </span>
+        <span>PostgreSQL · FastAPI · React</span>
+      </footer>
     </main>
   );
 }
