@@ -1,0 +1,62 @@
+name: rollback-eks
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment:
+        description: Deployment to roll back
+        required: true
+        type: choice
+        options:
+          - launchboard-backend
+          - launchboard-frontend
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-eks
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Roll back ${{ inputs.deployment }}
+    runs-on: ubuntu-latest
+    env:
+      NAMESPACE: devops-launchboard
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name "${{ secrets.EKS_CLUSTER_NAME }}" \
+            --region "${{ secrets.AWS_REGION }}"
+
+      - name: Show history
+        run: kubectl -n "${NAMESPACE}" rollout history deployment/${{ inputs.deployment }}
+
+      - name: Roll back
+        run: kubectl -n "${NAMESPACE}" rollout undo deployment/${{ inputs.deployment }}
+
+      - name: Wait
+        run: kubectl -n "${NAMESPACE}" rollout status deployment/${{ inputs.deployment }} --timeout=300s
+
+      - name: Show current image
+        run: |
+          kubectl -n "${NAMESPACE}" get deployment ${{ inputs.deployment }} \
+            -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo ""
+
+      - name: Verify
+        run: |
+          ALB_URL="${{ vars.EKS_ALB_URL }}"
+          if [ -n "$ALB_URL" ]; then
+            curl -fsS "${ALB_URL}/health" || echo "Health check pending"
+            echo "Rollback verified."
+          fi

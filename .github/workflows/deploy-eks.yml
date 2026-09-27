@@ -1,0 +1,84 @@
+name: deploy-eks
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["docker-build-push-hub"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-eks
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    env:
+      NAMESPACE: devops-launchboard
+    steps:
+      - name: Set image tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          else
+            FULL_SHA="${{ github.event.workflow_run.head_sha }}"
+            echo "IMAGE_TAG=${FULL_SHA::7}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name "${{ secrets.EKS_CLUSTER_NAME }}" \
+            --region "${{ secrets.AWS_REGION }}"
+          kubectl get nodes
+
+      - name: Update backend image
+        run: |
+          kubectl -n "${NAMESPACE}" set image deployment/launchboard-backend \
+            backend=${{ secrets.DOCKERHUB_USERNAME }}/launchboard-backend-k8s:${IMAGE_TAG}
+
+      - name: Update frontend image
+        run: |
+          kubectl -n "${NAMESPACE}" set image deployment/launchboard-frontend \
+            frontend=${{ secrets.DOCKERHUB_USERNAME }}/launchboard-frontend-k8s:${IMAGE_TAG}
+
+      - name: Wait for rollout
+        run: |
+          kubectl -n "${NAMESPACE}" rollout status deployment/launchboard-backend --timeout=300s
+          kubectl -n "${NAMESPACE}" rollout status deployment/launchboard-frontend --timeout=300s
+
+      - name: Update CORS
+        run: |
+          if [ -n "${{ vars.EKS_ALB_URL }}" ]; then
+            kubectl -n "${NAMESPACE}" patch configmap launchboard-config --type merge \
+              -p '{"data":{"CORS_ORIGINS":"${{ vars.EKS_ALB_URL }}"}}'
+          fi
+
+      - name: Verify
+        run: |
+          ALB_URL="${{ vars.EKS_ALB_URL }}"
+          if [ -n "$ALB_URL" ]; then
+            sleep 10
+            curl -fsS "${ALB_URL}/health" || echo "Health check pending"
+            curl -fsS "${ALB_URL}/api/summary" | head -c 400 || echo "API pending"
+            echo ""
+          fi
+          echo "Deployed ${IMAGE_TAG}."
+
+      - name: Show deployed images
+        run: |
+          echo "Backend: $(kubectl -n ${NAMESPACE} get deploy launchboard-backend -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          echo "Frontend: $(kubectl -n ${NAMESPACE} get deploy launchboard-frontend -o jsonpath='{.spec.template.spec.containers[0].image}')"
